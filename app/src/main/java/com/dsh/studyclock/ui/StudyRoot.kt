@@ -1,4 +1,4 @@
-﻿package com.dsh.studyclock.ui
+package com.dsh.studyclock.ui
 
 import android.Manifest
 import android.content.BroadcastReceiver
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -42,6 +43,7 @@ import com.dsh.studyclock.TimerService
 import com.dsh.studyclock.data.AppSettings
 import com.dsh.studyclock.data.AutoBackup
 import com.dsh.studyclock.data.CsvExporter
+import com.dsh.studyclock.data.HabitRepo
 import com.dsh.studyclock.data.SegmentRepo
 import com.dsh.studyclock.data.ServerSync
 import com.dsh.studyclock.data.UpdateChecker
@@ -54,7 +56,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.withContext
 
 @Composable
-fun StudyRoot(repo: SegmentRepo, settings: AppSettings) {
+fun StudyRoot(repo: SegmentRepo, habits: HabitRepo, settings: AppSettings) {
     // 同步读一次库：避免首帧先闪一下"0 段"再刷出数据
     val state = remember { AppState(repo, settings).also { it.refresh() } }
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -208,20 +210,32 @@ fun StudyRoot(repo: SegmentRepo, settings: AppSettings) {
                     icon = { Icon(Icons.Filled.DateRange, contentDescription = null) },
                     label = { Text("周历") },
                 )
+                NavigationBarItem(
+                    selected = tab == 2,
+                    onClick = { tab = 2 },
+                    icon = { Icon(Icons.Filled.CheckCircle, contentDescription = null) },
+                    label = { Text("清单") },
+                )
             }
         }
     ) { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
-            if (tab == 0) {
-                ClockPage(
+            when (tab) {
+                0 -> ClockPage(
                     state = state,
                     onOpenSettings = { showSettings = true },
                     onEditSegment = { editingId = it },
                 )
-            } else {
-                WeekPage(
+
+                1 -> WeekPage(
                     state = state,
                     onEditSegment = { editingId = it },
+                )
+
+                else -> HabitPage(
+                    repo = habits,
+                    dayMath = state.dayMath,
+                    now = state.now,
                 )
             }
         }

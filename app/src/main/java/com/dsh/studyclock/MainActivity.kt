@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.dsh.studyclock.data.AppSettings
+import com.dsh.studyclock.data.HabitRepo
 import com.dsh.studyclock.data.SegmentRepo
 import com.dsh.studyclock.data.StudyDb
 import com.dsh.studyclock.ui.StudyClockTheme
@@ -14,11 +15,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val repo = SegmentRepo(StudyDb(applicationContext))
+        val db = StudyDb(applicationContext)
+        val repo = SegmentRepo(db)
+        val habits = HabitRepo(db)
         val settings = AppSettings(applicationContext)
         setContent {
             StudyClockTheme {
-                StudyRoot(repo, settings)
+                StudyRoot(repo = repo, habits = habits, settings = settings)
             }
         }
     }
