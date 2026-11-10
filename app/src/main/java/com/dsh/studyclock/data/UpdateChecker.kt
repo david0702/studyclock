@@ -28,7 +28,12 @@ sealed class UpdateState {
     data object Checking : UpdateState()
     data object UpToDate : UpdateState()
     data class Available(val info: UpdateInfo) : UpdateState()
-    data class Downloading(val progress: Int) : UpdateState()
+    data class Downloading(
+        val progress: Int,
+        val readBytes: Long = 0L,
+        val totalBytes: Long = 0L,
+        val bytesPerSec: Long = 0L,
+    ) : UpdateState()
     data class ReadyToInstall(val info: UpdateInfo, val apk: File) : UpdateState()
     data class Failed(val message: String) : UpdateState()
 }
@@ -101,7 +106,7 @@ object UpdateChecker {
         )
     }
 
-    fun download(context: Context, info: UpdateInfo, onProgress: (Int) -> Unit = {}): UpdateState {
+    fun download(context: Context, info: UpdateInfo, onProgress: (UpdateState.Downloading) -> Unit = {}): UpdateState {
         val dir = File(context.filesDir, "updates").apply { mkdirs() }
         val target = File(dir, "studyclock-${info.versionName}.apk")
 
@@ -113,7 +118,7 @@ object UpdateChecker {
         for (url in candidates) {
             val result = runCatching {
                 if (!target.exists() || (info.size > 0 && target.length() != info.size)) {
-                    httpDownloadToFile(url, target, onProgress)
+                    httpDownloadToFile(url, target, info.size, onProgress)
                 }
                 if (info.sha256 != null) {
                     val actual = sha256(target)
@@ -188,7 +193,7 @@ object UpdateChecker {
         }
     }
 
-    private fun httpDownloadToFile(url: String, target: File, onProgress: (Int) -> Unit = {}) {
+    private fun httpDownloadToFile(url: String, target: File, sizeHint: Long, onProgress: (UpdateState.Downloading) -> Unit = {}) {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT
@@ -199,27 +204,49 @@ object UpdateChecker {
         try {
             val code = conn.responseCode
             if (code !in 200..299) error("HTTP $code")
-            val total = conn.contentLengthLong
+            val headerTotal = conn.contentLengthLong
+            val total = if (headerTotal > 0) headerTotal else sizeHint
             val tmp = File(target.parentFile, target.name + ".part")
             conn.inputStream.use { input ->
                 tmp.outputStream().use { out ->
                     val buf = ByteArray(64 * 1024)
                     var read = 0L
+                    var lastEmit = System.currentTimeMillis()
+                    var lastBytes = 0L
                     var lastPct = -1
                     while (true) {
                         val n = input.read(buf)
                         if (n <= 0) break
                         out.write(buf, 0, n)
                         read += n
-                        if (total > 0) {
-                            val pct = (read * 100 / total).toInt().coerceIn(0, 100)
-                            if (pct != lastPct) {
-                                lastPct = pct
-                                onProgress(pct)
-                            }
+                        val nowMs = System.currentTimeMillis()
+                        // 每 ~350ms 刷新一次进度/网速，避免过于频繁的重组
+                        if (nowMs - lastEmit >= 350) {
+                            val speed = if (nowMs > lastEmit)
+                                (read - lastBytes) * 1000L / (nowMs - lastEmit) else 0L
+                            val pct = if (total > 0) (read * 100 / total).toInt().coerceIn(0, 100) else 0
+                            onProgress(
+                                UpdateState.Downloading(
+                                    progress = pct,
+                                    readBytes = read,
+                                    totalBytes = total,
+                                    bytesPerSec = speed.coerceAtLeast(0L),
+                                )
+                            )
+                            lastEmit = nowMs
+                            lastBytes = read
+                            lastPct = pct
                         }
                     }
-                    if (total <= 0) onProgress(100)
+                    val finalPct = if (total > 0 && lastPct != 100) 100 else lastPct.coerceAtLeast(0)
+                    onProgress(
+                        UpdateState.Downloading(
+                            progress = finalPct,
+                            readBytes = read,
+                            totalBytes = total,
+                            bytesPerSec = 0L,
+                        )
+                    )
                 }
             }
             if (target.exists()) target.delete()

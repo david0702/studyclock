@@ -272,6 +272,13 @@ fun SettingsSheet(
                         progress = (s.progress / 100f).coerceIn(0f, 1f),
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (s.readBytes <= 0L) "连接中…"
+                        else "${Fmt.bytes(s.readBytes)} / ${Fmt.bytes(s.totalBytes)} · ${Fmt.speed(s.bytesPerSec)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = scheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    )
                 }
 
                 is UpdateState.ReadyToInstall -> Text(

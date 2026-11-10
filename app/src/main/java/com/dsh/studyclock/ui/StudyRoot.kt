@@ -1,4 +1,4 @@
-package com.dsh.studyclock.ui
+﻿package com.dsh.studyclock.ui
 
 import android.Manifest
 import android.content.BroadcastReceiver
@@ -73,8 +73,9 @@ fun StudyRoot(repo: SegmentRepo, habits: HabitRepo, settings: AppSettings) {
         scope.launch {
             updateState = UpdateState.Downloading(0)
             val result = withContext(Dispatchers.IO) {
-                UpdateChecker.download(context, info) { pct ->
-                    updateState = UpdateState.Downloading(pct)
+                UpdateChecker.download(context, info) { st ->
+                    updateState = st
+                    android.util.Log.d("UpdateChecker", "progress ${st.progress}% ${st.readBytes}/${st.totalBytes}B ${st.bytesPerSec}B/s")
                 }
             }
             updateState = result

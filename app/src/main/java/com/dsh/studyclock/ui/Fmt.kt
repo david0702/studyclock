@@ -1,4 +1,4 @@
-package com.dsh.studyclock.ui
+﻿package com.dsh.studyclock.ui
 
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,5 +56,22 @@ object Fmt {
     fun range(startMs: Long, endMs: Long, crossesDay: Boolean): String {
         val start = if (crossesDay) "昨 ${clock(startMs)}" else clock(startMs)
         return "$start – ${clock(endMs)}"
+    }
+
+    /** 字节数：3.4 MB / 812 KB。 */
+    fun bytes(n: Long): String {
+        if (n <= 0) return "0 B"
+        val kb = n / 1024.0
+        if (kb < 1024) return String.format(Locale.ROOT, "%.0f KB", kb)
+        val mb = kb / 1024.0
+        return String.format(Locale.ROOT, "%.1f MB", mb)
+    }
+
+    /** 网速：1.2 MB/s。 */
+    fun speed(bytesPerSec: Long): String {
+        if (bytesPerSec <= 0) return "—"
+        val kb = bytesPerSec / 1024.0
+        if (kb < 1024) return String.format(Locale.ROOT, "%.0f KB/s", kb)
+        return String.format(Locale.ROOT, "%.1f MB/s", kb / 1024.0)
     }
 }
