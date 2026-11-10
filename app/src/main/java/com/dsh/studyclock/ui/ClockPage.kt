@@ -92,23 +92,26 @@ fun ClockPage(
 
         Spacer(Modifier.height(6.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(if (running != null) scheme.primary else scheme.outline.copy(alpha = 0.5f))
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = if (running != null) "正在计时 · ${Fmt.clock(running.startMs)} 开始" else "未开始，点下面开始计时",
-                style = MaterialTheme.typography.bodyMedium,
-                color = scheme.onSurfaceVariant,
-            )
+        // 未开始时不再显示提示行（按钮本身已经说明）；计时中保留"从几点开始"
+        if (running != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(scheme.primary)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "正在计时 · ${Fmt.clock(running.startMs)} 开始",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
         }
 
         Spacer(Modifier.height(22.dp))
