@@ -101,7 +101,7 @@ object UpdateChecker {
         )
     }
 
-    fun download(context: Context, info: UpdateInfo): UpdateState {
+    fun download(context: Context, info: UpdateInfo, onProgress: (Int) -> Unit = {}): UpdateState {
         val dir = File(context.filesDir, "updates").apply { mkdirs() }
         val target = File(dir, "studyclock-${info.versionName}.apk")
 
@@ -113,7 +113,7 @@ object UpdateChecker {
         for (url in candidates) {
             val result = runCatching {
                 if (!target.exists() || (info.size > 0 && target.length() != info.size)) {
-                    httpDownloadToFile(url, target)
+                    httpDownloadToFile(url, target, onProgress)
                 }
                 if (info.sha256 != null) {
                     val actual = sha256(target)
@@ -188,7 +188,7 @@ object UpdateChecker {
         }
     }
 
-    private fun httpDownloadToFile(url: String, target: File) {
+    private fun httpDownloadToFile(url: String, target: File, onProgress: (Int) -> Unit = {}) {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT
@@ -199,10 +199,27 @@ object UpdateChecker {
         try {
             val code = conn.responseCode
             if (code !in 200..299) error("HTTP $code")
+            val total = conn.contentLengthLong
             val tmp = File(target.parentFile, target.name + ".part")
             conn.inputStream.use { input ->
                 tmp.outputStream().use { out ->
-                    input.copyTo(out)
+                    val buf = ByteArray(64 * 1024)
+                    var read = 0L
+                    var lastPct = -1
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n <= 0) break
+                        out.write(buf, 0, n)
+                        read += n
+                        if (total > 0) {
+                            val pct = (read * 100 / total).toInt().coerceIn(0, 100)
+                            if (pct != lastPct) {
+                                lastPct = pct
+                                onProgress(pct)
+                            }
+                        }
+                    }
+                    if (total <= 0) onProgress(100)
                 }
             }
             if (target.exists()) target.delete()

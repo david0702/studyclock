@@ -70,7 +70,11 @@ fun StudyRoot(repo: SegmentRepo, settings: AppSettings) {
     val startInstall: (UpdateInfo) -> Unit = { info ->
         scope.launch {
             updateState = UpdateState.Downloading(0)
-            val result = withContext(Dispatchers.IO) { UpdateChecker.download(context, info) }
+            val result = withContext(Dispatchers.IO) {
+                UpdateChecker.download(context, info) { pct ->
+                    updateState = UpdateState.Downloading(pct)
+                }
+            }
             updateState = result
             if (result is UpdateState.ReadyToInstall) {
                 if (!UpdateChecker.install(context, result.apk)) {

@@ -11,8 +11,8 @@ android {
         applicationId = "com.dsh.studyclock"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 9
+        versionName = "1.8"
 
         // 内置云端备份端点（来自 gradle.properties，不进源码；缺省则 App 里显示"未配置"）
         val syncUrl = (project.findProperty("studysync.url") as String?) ?: ""

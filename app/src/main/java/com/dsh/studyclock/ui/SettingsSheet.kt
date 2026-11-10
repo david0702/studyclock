@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -260,11 +261,18 @@ fun SettingsSheet(
                     }
                 }
 
-                is UpdateState.Downloading -> Text(
-                    "正在下载安装包…",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
-                )
+                is UpdateState.Downloading -> Column {
+                    Text(
+                        "正在下载安装包… ${s.progress}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = (s.progress / 100f).coerceIn(0f, 1f),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
                 is UpdateState.ReadyToInstall -> Text(
                     "已下载 v${s.info.versionName}，等待安装。",
