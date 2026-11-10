@@ -1,0 +1,19 @@
+[Unit]
+Description=StudyClock backup receiver (127.0.0.1:8791)
+After=network.target
+
+[Service]
+User=syncthing
+Group=syncthing
+EnvironmentFile=/etc/studyclock-recv.env
+ExecStart=/usr/bin/python3 /opt/studyclock-recv/recv.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadWritePaths=/var/lib/syncthing/studyclock
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+# 构建产物 / 本机私有
+build/
+.gradle/
+app/build/
+app/release/
+local.properties
+gradle.properties
+keystore/
+*.jks
+*.keystore
+
+# 本机脚本产物
+tools/*.db
+tools/*.png
+tools/*.csv
+tools/*.json
+tools/ui*.xml
+server/*.log
+
+# IDE
+.idea/
+*.iml
+.DS_Store
