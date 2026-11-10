@@ -72,3 +72,28 @@ APK 内嵌了云端备份的写入端点与令牌（为了手机端零配置）�
 
 个人项目，未声明开源许可；代码可参考。
 
+## 开发/调试提速（v1.10.1 起）
+
+为了不每次都「构建→装到模拟器→按坐标点界面→截图」折腾，加了这些：
+
+```powershell
+# 1) 常驻 daemon，增量构建 2-4 秒（别再 --no-daemon）
+D:\dsh\gradle\gradle-8.7\bin\gradle.bat assembleDebug
+
+# 2) 单元测试：纯逻辑秒级回归（换日/版本比较/连续天数/CSV 转义）
+D:\dsh\gradle\gradle-8.7\bin\gradle.bat testDebugUnitTest
+
+# 3) debug 包独立包名 com.dsh.studyclock.dev，可与正式包共存、随便覆盖安装
+#    并支持调试入口参数（直接打开设置、触发检查、指向本地更新源）：
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+adb shell am start -n com.dsh.studyclock.dev/com.dsh.studyclock.MainActivity \
+    --ez show_settings true --ez check_update true \
+    --es update_url http://127.0.0.1:8099/release.json
+
+# 4) 本地更新测试源（模拟 GitHub Release，300KB 假包，20 秒跑完更新链路）
+python tools/mock-update-server.py 8099
+adb reverse tcp:8099 tcp:8099
+```
+
+debug 构建默认关闭云端上传（避免测试数据污染正式备份）。
+`gradle.properties` 里不再写死代理；需要代理时临时加 `systemProp.http(s).proxyHost=127.0.0.1` / `proxyPort=7897`。

@@ -1,4 +1,4 @@
-package com.dsh.studyclock.data
+﻿package com.dsh.studyclock.data
 
 import android.content.Context
 import android.content.Intent
@@ -25,12 +25,12 @@ object CsvExporter {
             val end = seg.endMs ?: System.currentTimeMillis()
             val minutes = ((end - seg.startMs) / 60000.0)
             val studyDay = dayMath.studyDate(seg.startMs).toString()
-            sb.append(csv(Fmt.csvTime(seg.startMs))).append(',')
-                .append(csv(Fmt.csvTime(end))).append(',')
+            sb.append(csvCell(Fmt.csvTime(seg.startMs))).append(',')
+                .append(csvCell(Fmt.csvTime(end))).append(',')
                 .append(String.format(Locale.ROOT, "%.1f", minutes)).append(',')
-                .append(csv(studyDay)).append(',')
-                .append(csv(seg.category)).append(',')
-                .append(csv(seg.note)).append("\r\n")
+                .append(csvCell(studyDay)).append(',')
+                .append(csvCell(seg.category)).append(',')
+                .append(csvCell(seg.note)).append("\r\n")
         }
         return sb.toString()
     }
@@ -60,8 +60,4 @@ object CsvExporter {
         return Intent.createChooser(send, "导出 CSV 到…")
     }
 
-    private fun csv(value: String): String =
-        if (value.contains(',') || value.contains('"') || value.contains('\n')) {
-            "\"" + value.replace("\"", "\"\"") + "\""
-        } else value
 }

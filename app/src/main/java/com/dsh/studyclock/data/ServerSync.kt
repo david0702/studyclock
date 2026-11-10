@@ -37,7 +37,7 @@ object ServerSync {
         endpoint(context).isNotBlank() && token(context).isNotBlank()
 
     fun isEnabled(context: Context): Boolean =
-        isConfigured(context) && prefs(context).getBoolean(KEY_ENABLED, true)
+        isConfigured(context) && prefs(context).getBoolean(KEY_ENABLED, !BuildConfig.DEBUG)
 
     fun setEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply()

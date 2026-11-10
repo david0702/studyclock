@@ -56,10 +56,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.withContext
 
 @Composable
-fun StudyRoot(repo: SegmentRepo, habits: HabitRepo, settings: AppSettings) {
+fun StudyRoot(
+    repo: SegmentRepo,
+    habits: HabitRepo,
+    settings: AppSettings,
+    initialTab: Int = -1,
+    openSettingsOnStart: Boolean = false,
+    checkUpdateOnStart: Boolean = false,
+    debugUpdateUrl: String? = null,
+) {
     // 同步读一次库：避免首帧先闪一下"0 段"再刷出数据
     val state = remember { AppState(repo, settings).also { it.refresh() } }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(if (initialTab in 0..2) initialTab else 0) }
     var editingId by remember { mutableStateOf<Long?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -107,6 +115,15 @@ fun StudyRoot(repo: SegmentRepo, habits: HabitRepo, settings: AppSettings) {
             settings.lastUpdateCheckAt = System.currentTimeMillis()
             if (result is UpdateState.Available) updateDialogFor = result.info
         }
+    }
+
+    // 调试入口（仅 debug 构建会传值）：直接开设置 / 触发检查 / 指定本地更新源
+    LaunchedEffect(Unit) {
+        if (!debugUpdateUrl.isNullOrBlank()) {
+            UpdateChecker.urlOverride = debugUpdateUrl
+        }
+        if (openSettingsOnStart) showSettings = true
+        if (checkUpdateOnStart) checkUpdateNow()
     }
 
     // 自动保存相关：选中目录后每次记录变化都覆盖写一份（防抖 1.5s）

@@ -1,4 +1,4 @@
-package com.dsh.studyclock.data
+﻿package com.dsh.studyclock.data
 
 import android.content.Context
 import android.content.Intent
@@ -60,7 +60,8 @@ object UpdateChecker {
 
     fun check(): UpdateState {
         val errors = ArrayList<String>()
-        for (api in API_URLS) {
+        val sources = urlOverride?.takeIf { it.isNotBlank() }?.let { listOf(it) } ?: API_URLS
+        for (api in sources) {
             val state = runCatching { checkFrom(api) }
                 .onFailure { errors += (it.message ?: it.javaClass.simpleName) }
                 .getOrNull()
@@ -116,6 +117,11 @@ object UpdateChecker {
 
         val errors = ArrayList<String>()
         for (url in candidates) {
+            // 直连 GitHub 在部分网络会卡很久：先用 2.5s 的 TCP 探测，不通就直接换镜像
+            if (url == info.apkUrl && !hostReachable(url)) {
+                errors += "直连不可达"
+                continue
+            }
             val result = runCatching {
                 if (!target.exists() || (info.size > 0 && target.length() != info.size)) {
                     httpDownloadToFile(url, target, info.size, onProgress)
@@ -160,20 +166,19 @@ object UpdateChecker {
         false
     }
 
-    /** 比较 "1.10" 这类版本号。 */
-    private fun isNewer(candidate: String, current: String): Boolean {
-        fun parts(v: String) = v.trim().split(".", "-", "+")
-            .mapNotNull { s -> s.toIntOrNull() }
-            .let { it + List(maxOf(0, 3 - it.size)) { 0 } }
-        val a = parts(candidate)
-        val b = parts(current)
-        for (i in 0 until maxOf(a.size, b.size)) {
-            val x = a.getOrElse(i) { 0 }
-            val y = b.getOrElse(i) { 0 }
-            if (x != y) return x > y
-        }
-        return false
-    }
+    /** 调试用：把首个更新源替换成本地地址（仅 debug 构建会被设置）。 */
+    @Volatile
+    var urlOverride: String? = null
+
+    private fun isNewer(candidate: String, current: String): Boolean = isNewerVersion(candidate, current)
+
+    /** 2.5 秒内能否建立 TCP 连接（用来快速跳过被墙/黑洞的源）。 */
+    private fun hostReachable(url: String, timeoutMs: Int = 2500): Boolean = runCatching {
+        val parsed = URL(url)
+        val port = if (parsed.port > 0) parsed.port else if (parsed.protocol == "https") 443 else 80
+        java.net.Socket().use { it.connect(java.net.InetSocketAddress(parsed.host, port), timeoutMs) }
+        true
+    }.getOrDefault(false)
 
     private fun httpGet(url: String, accept: String, userAgent: String?): String {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {

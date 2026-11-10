@@ -11,9 +11,10 @@ import java.time.ZoneId
  * 默认一天从 00:00 起，但可以在设置里改成 0–6 点任意时刻（夜猫子用）。
  * 注意：**数据永远不按天拆分**，跨零点的段仍是一条记录，只有在周历/汇总展示时才按天裁切。
  */
-class DayMath(val rolloverHour: Int) {
-
-    private val zone: ZoneId = ZoneId.systemDefault()
+class DayMath(
+    val rolloverHour: Int,
+    private val zone: ZoneId = ZoneId.systemDefault(),
+) {
 
     /** 某个时刻属于哪个「学习日」（本地日期）。 */
     fun studyDate(t: Long): LocalDate {

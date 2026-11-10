@@ -38,6 +38,9 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            // 调试包独立包名，可与正式包共存，方便随意覆盖安装
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
         }
         release {
             isMinifyEnabled = false
@@ -65,6 +68,10 @@ android {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -81,4 +88,5 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:1.6.8")
     implementation("androidx.compose.material3:material3:1.2.1")
     implementation("androidx.compose.material:material-icons-core:1.6.8")
+    testImplementation("junit:junit:4.13.2")
 }

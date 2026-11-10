@@ -1,4 +1,4 @@
-package com.dsh.studyclock.data
+﻿package com.dsh.studyclock.data
 
 import android.content.ContentValues
 import java.time.LocalDate
@@ -101,18 +101,9 @@ class HabitRepo(private val helper: StudyDb) {
     }
 
     /** 连续完成天数：今天没勾则从昨天往前算（今天还没做不算断）。 */
-    fun streak(days: Set<String>, today: LocalDate): Int {
-        var d = today
-        if (!days.contains(d.toString())) d = d.minusDays(1)
-        var n = 0
-        while (days.contains(d.toString())) {
-            n++
-            d = d.minusDays(1)
-        }
-        return n
-    }
+    fun streak(days: Set<String>, today: LocalDate): Int = HabitStats.streak(days, today)
 
     /** 最近 [count] 天（含今天）是否完成，返回从旧到新。 */
     fun lastNDays(days: Set<String>, today: LocalDate, count: Int): List<Boolean> =
-        (count - 1 downTo 0).map { back -> days.contains(today.minusDays(back.toLong()).toString()) }
+        HabitStats.lastNDays(days, today, count)
 }
