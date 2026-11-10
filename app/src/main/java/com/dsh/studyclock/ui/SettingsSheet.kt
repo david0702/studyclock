@@ -1,4 +1,4 @@
-package com.dsh.studyclock.ui
+﻿package com.dsh.studyclock.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -222,7 +222,7 @@ fun SettingsSheet(
             Spacer(Modifier.height(4.dp))
             when (val s = updateState) {
                 is UpdateState.Idle -> Text(
-                    "检查更新走自己的服务器（国内直连 GitHub 不稳定），有新版本会提示下载并安装。",
+                    "更新来自 GitHub Releases：直连 api.github.com 查版本，安装包优先直连下载，不通时自动走镜像，并用 GitHub 的 sha256 校验。",
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
                 )
@@ -244,6 +244,11 @@ fun SettingsSheet(
                         "发现新版本 v${s.info.versionName}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = scheme.primary,
+                    )
+                    Text(
+                        "来源：GitHub Releases" + if (s.info.source.startsWith("mirror:")) "（镜像下载）" else "（直连）",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = scheme.onSurfaceVariant,
                     )
                     if (s.info.notes.isNotBlank()) {
                         Spacer(Modifier.height(2.dp))

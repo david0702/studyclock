@@ -1,4 +1,4 @@
-# 学习正计时（StudyClock）
+﻿# 学习正计时（StudyClock）
 
 一个**正计时**学习时长记录安卓 App：点开始就往上计时，暂停即切段，每段可写两级备注（大类短标签 + 自由备注），
 第二页是一周七天横排、每天竖向时间轴的色块周历。
@@ -15,11 +15,16 @@
 
 ## 应用内更新
 
-App 启动时（6 小时节流）和设置页「检查更新」都会读：
+App 启动时（6 小时节流）和设置页「检查更新」都直接查 GitHub Releases：
 
 ```
-https://eregion.cn/studyclock/app/latest.json
+https://api.github.com/repos/david0702/studyclock/releases/latest
 ```
+
+- 版本号取 Release 的 tag（`vX.Y`）
+- 安装包优先直连 `browser_download_url`；直连不通时自动回退 `gh-proxy.com` / `ghfast.top` 镜像
+- 用 GitHub 资产自带的 `digest`（sha256）校验，镜像无法篡改
+- 不依赖任何自建服务器
 
 结构：
 
@@ -34,8 +39,7 @@ https://eregion.cn/studyclock/app/latest.json
 }
 ```
 
-`versionCode` 大于当前包内版本时提示下载安装。走自己的服务器而不是 GitHub Releases，
-是因为国内直连 GitHub 不稳定；GitHub 用于源码与安装包归档。
+版本号高于当前包内版本时提示下载安装。
 
 ## 构建
 
@@ -67,3 +71,4 @@ APK 内嵌了云端备份的写入端点与令牌（为了手机端零配置）�
 ## License
 
 个人项目，未声明开源许可；代码可参考。
+

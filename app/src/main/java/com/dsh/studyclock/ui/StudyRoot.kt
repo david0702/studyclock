@@ -1,4 +1,4 @@
-package com.dsh.studyclock.ui
+﻿package com.dsh.studyclock.ui
 
 import android.Manifest
 import android.content.BroadcastReceiver

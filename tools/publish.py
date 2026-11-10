@@ -1,39 +1,29 @@
 ﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""发布新版本：APK + latest.json 推到服务器；可选同步 GitHub Release。
+"""发布新版本到 GitHub Releases（应用内更新直接读 GitHub）。
 
 用法：
     python tools/publish.py --version 1.6 --code 7 --notes "修复 xxx"
-    python tools/publish.py --version 1.6 --code 7 --notes-file notes.md --skip-github
+    python tools/publish.py --version 1.6 --code 7 --notes-file notes.md
 
-注意：
-- 不走 Windows PowerShell 传参，避免中文被转成 GBK；
-- APK 上传后重新计算并校验 sha256，manifest 里的值以服务器实际文件为准；
-- 服务器路径 /srv/study-vault/public/studyclock/app（nginx 静态目录）。
+做的事：
+  1. 校验 APK 里的 versionName/versionCode 与参数一致（防止发错包）；
+  2. 把 APK 作为 Release 资产上传（同名 tag 已存在则覆盖资产）；
+  3. 打印 release 页与资产 sha256（应用内更新用 GitHub 提供的 digest 校验）。
+
+注意：不走服务器；云端备份的上传端点是另一个功能，与此无关。
 """
 import argparse
-import sys as _sys
-
-try:
-    _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except Exception:
-    pass
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
-import urllib.request
+import zipfile
 
 APK = r"D:\dsh\studyclock\app\build\outputs\apk\release\app-release.apk"
-REMOTE_DIR = "/srv/study-vault/public/studyclock/app"
-BASE_URL = "https://eregion.cn/studyclock/app"
 REPO = "david0702/studyclock"
-
-
-def run(cmd, **kw):
-    print("+", " ".join(cmd))
-    return subprocess.run(cmd, check=True, text=True, encoding="utf-8", **kw)
 
 
 def sha256(path):
@@ -44,83 +34,81 @@ def sha256(path):
     return h.hexdigest()
 
 
+AAPT2 = r"D:\Android\sdk\build-tools\34.0.0\aapt2.exe"
+
+
+def apk_version(path):
+    """用 aapt2 读 APK 的 versionCode/versionName。"""
+    out = subprocess.run([AAPT2, "dump", "badging", path],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
+    code = re.search(r"versionCode='(\d+)'", out)
+    name = re.search(r"versionName='([^']+)'", out)
+    return (int(code.group(1)) if code else None, name.group(1) if name else None)
+
+
+def run(cmd, **kw):
+    print("+", " ".join(cmd))
+    return subprocess.run(cmd, check=True, text=True, encoding="utf-8", **kw)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", required=True)
     ap.add_argument("--code", type=int, required=True)
     ap.add_argument("--notes", default="")
     ap.add_argument("--notes-file", default="")
-    ap.add_argument("--skip-github", action="store_true")
     ap.add_argument("--apk", default=APK)
     args = ap.parse_args()
 
     if not os.path.exists(args.apk):
         sys.exit("APK 不存在，先构建: " + args.apk)
 
+    code, name = apk_version(args.apk)
+    print("APK 内版本: versionName=%s versionCode=%s" % (name, code))
+    if code != args.code or name != args.version:
+        sys.exit("参数与 APK 不一致（期望 %s/%s，实际 %s/%s）— 先重新构建"
+                 % (args.version, args.code, name, code))
+
     notes = args.notes
     if args.notes_file:
         notes = open(args.notes_file, encoding="utf-8").read().strip()
-    if not notes:
-        notes = "v" + args.version
+    notes = notes or ("v" + args.version)
 
-    name = "studyclock-v%s.apk" % args.version
     digest = sha256(args.apk)
     size = os.path.getsize(args.apk)
+    tag = "v" + args.version
 
-    print("== 1. 上传 APK ==")
-    run(["scp", "-q", args.apk, "tech:/tmp/" + name])
-    run(["ssh", "tech",
-         "sudo -n mkdir -p %s && sudo -n mv /tmp/%s %s/%s && "
-         "sudo -n chown www-data:www-data %s/%s && sudo -n chmod 644 %s/%s && "
-         "sha256sum %s/%s" % (REMOTE_DIR, name, REMOTE_DIR, name,
-                               REMOTE_DIR, name, REMOTE_DIR, name,
-                               REMOTE_DIR, name)])
+    notes_path = os.path.join(os.environ.get("TEMP", "."), "studyclock-notes.md")
+    with open(notes_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(notes + "\n")
 
-    print("== 2. 写 latest.json ==")
-    manifest = {
-        "versionCode": args.code,
-        "versionName": args.version,
-        "notes": notes,
-        "apkUrl": "%s/%s" % (BASE_URL, name),
-        "sha256": digest,
-        "size": size,
-    }
-    tmp = os.path.join(os.environ.get("TEMP", "."), "studyclock-latest.json")
-    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(manifest, f, ensure_ascii=False, indent=2)
-    run(["scp", "-q", tmp, "tech:/tmp/latest.json"])
-    run(["ssh", "tech",
-         "sudo -n mv /tmp/latest.json %s/latest.json && "
-         "sudo -n chown www-data:www-data %s/latest.json && "
-         "sudo -n chmod 644 %s/latest.json" % (REMOTE_DIR, REMOTE_DIR, REMOTE_DIR)])
+    print("== 上传 Release 资产 ==")
+    exists = subprocess.run(["gh", "release", "view", tag], capture_output=True, text=True)
+    if exists.returncode == 0:
+        run(["gh", "release", "upload", tag, args.apk, "--clobber"])
+        run(["gh", "release", "edit", tag, "--notes-file", notes_path])
+    else:
+        run(["gh", "release", "create", tag, args.apk, "--title", tag, "--notes-file", notes_path])
 
-    print("== 3. 校验线上 ==")
-    with urllib.request.urlopen(BASE_URL + "/latest.json", timeout=20) as resp:
-        live = json.loads(resp.read().decode("utf-8"))
-    print(json.dumps(live, ensure_ascii=False, indent=2))
-    assert live["sha256"] == digest, "线上 manifest 与本地产物不一致"
-    print("manifest matches local APK")
-
-    if not args.skip_github:
-        print("== 4. GitHub Release ==")
-        notes_path = os.path.join(os.environ.get("TEMP", "."), "studyclock-notes.md")
-        with open(notes_path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(notes + "\n")
-        tag = "v" + args.version
-        # 如果 release 已存在就覆盖上传资产
-        exists = subprocess.run(["gh", "release", "view", tag],
-                                capture_output=True, text=True)
-        if exists.returncode == 0:
-            run(["gh", "release", "upload", tag, args.apk, "--clobber"])
-        else:
-            run(["gh", "release", "create", tag, args.apk,
-                 "--title", tag, "--notes-file", notes_path])
-
-    print("\n完成：")
-    print("  APK      %s/%s" % (BASE_URL, name))
-    print("  Manifest %s/latest.json" % BASE_URL)
-    print("  sha256   %s (%d bytes)" % (digest, size))
+    print("== 校验远端资产 ==")
+    raw = subprocess.run(
+        ["gh", "release", "view", tag, "--json", "assets"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    assets = json.loads(raw)["assets"]
+    print(json.dumps(assets, ensure_ascii=False, indent=2))
+    remote = next((a for a in assets if a.get("name", "").endswith(".apk")), None)
+    if not remote:
+        sys.exit("远端找不到 apk 资产")
+    if remote.get("size") != size:
+        sys.exit("远端资产大小不一致")
+    print("远端资产大小一致（%d bytes），本地 sha256=%s" % (size, digest))
+    print("\n完成：https://github.com/%s/releases/tag/%s" % (REPO, tag))
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main()
